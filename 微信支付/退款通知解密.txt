@@ -1,0 +1,103 @@
+
+
+# 文档
+https://pay.weixin.qq.com/wiki/doc/api/jsapi.php?chapter=9_16&index=10
+
+
+一开始理解错了，浪费了不少时间。
+
+"用key*对加密串B做AES-256-ECB解密"
+
+
+其实是把最后的MD5串中的每个字符当成128bit密码;
+
+
+# 代码
+
+<p>
+<code>
+
+	std::string origin_key = "这个是商户密钥";
+	Poco::Crypto::DigestEngine engin("MD5");
+	engin.update(origin_key);
+
+	Poco::Crypto::CipherKey::ByteVec iv;
+	for (int i = 0; i < 16; i++) {
+		iv.push_back(0);
+	}
+	std::string apikey(Poco::Crypto::DigestEngine::digestToHex(engin.digest()));
+	//Poco::Crypto::CipherKey ckey("aes-256-ecb", apikey);  
+	////  https://blog.csdn.net/test1280/article/details/75268255
+	//// http://www.cnblogs.com/adylee/archive/2007/09/14/893438.html
+
+	Poco::Crypto::CipherKey ckey("aes-256-ecb");
+
+	Poco::Crypto::CipherKey::ByteVec real_key_128bit;
+	for (int i = 0; i < 32; i++) {
+		real_key_128bit.push_back(apikey.at(i));
+	}
+	ckey.setKey(real_key_128bit);
+	Poco::Crypto::Cipher::Ptr cipher = Poco::Crypto::CipherFactory::defaultFactory().createCipher(ckey);
+
+
+	std::string saaa = "W5Yk7rNq/D+eUARjSghwsRd8mmupaeW8+kG8ea7vqKLg/WjU6I0kIXN"
+		"8cGWokaV4GlsdeIS1jXs2ab6Yyu6Y8fmThf06gFmVZCgSKY4ZCgQ5/2LOZLqBPAMs72jlLnrA0rx8zuK"
+		"bRnYQHG3jAaPFcJMlXd6pjUARmiY2uMRWCus5u2stgxJ02rVwU4PC99XZUPzshdrq7BI9Hhn7y4vlwOE"
+		"0YwALLN/QC5oEaBw9QHOV6MlG6ghYFGvP9RS7LY6u7AO1w8BPm4TkEL9z4eWpgohEnIUZutsE28IpCrU"
+		"naK8P6ZWNMjNkBS9EE6zqAlLo3Q6itblrDFUSuZwTV4Nll29QF0Oe30I1o3opzxf80scT7/PlViwijyE"
+		"v/2SCwOMXBDOZudh2VNssF3DVaGjkm8BPNJrxDHX/gScWZDzZ6y/xkGwOxlkWZeAcob6ywVzoDKAfSUx"
+		"LEEoZbUQweTg/aqXzRAtBsz0jtRgENRTJjNsgQ+RHHlwXMcXhjae5hN0fsRyQ4TYWExH8AU4r72a6d9k"
+		"wj62UuzR9L7ahg9za4xTCw6kVhsYv+eKqUNcwtspAGtewfNRltOKR1oJFskcwDiOWi6PPowbGwlCpf4v"
+		"lQL40tYDrxTzx+5VeN1aCD7ttu+xYQydK16cLXgqpZkMLCJC3QkEnvk4vCYdE4Qfmgp5kkozq8RHCpQA"
+		"32azbaTj90NIWTknVaPFCPGggiCUGWYvN8WgvVB+BdzgI+7RWCR941m56hfLqZYuXrqV+weqBicZHMVS"
+		"/ITN5l1ULryr1f97M/WpXCnXZpKlXqLlkt/GHM3bPFO79qO5f4QR2MTc0GPzru2K6eyBs9wuDPJilesK"
+		"q2BnJ5DSJ2FI2vxYvDRypjDRBri7ZyBXebe5YIEmRGj+gAJuGnfK4KD596VSlpmEO4adncZn98i5FHNy"
+		"gViVkgkII6J7TaDONMc7RKs+5WKHmSA3diFhFcqgNSECyyNCSVVHLs7CwySZXKirND9M8x7+k3VJ6ggD"
+		"LPWbkcFRftn2IAh0ICWxtU35/Rh6Twgq2IY4Me/3ZVLJjcbR9C40=";
+	std::string baaa;
+	Base64::Decode(saaa, &baaa);
+
+	std::string bbbbb = cipher->decryptString(baaa);
+	std::cout << "saaa=" << saaa << std::endl;
+	std::cout << "bbbbb=" << bbbbb << std::endl;
+
+
+
+
+</code>
+输出为：
+<code>
+saaa=W5Yk7rNq/D+eUARjSghwsRd8mmupaeW8+kG8ea7vqKLg/WjU6I0kIXN8cGWokaV4GlsdeIS1jXs
+2ab6Yyu6Y8fmThf06gFmVZCgSKY4ZCgQ5/2LOZLqBPAMs72jlLnrA0rx8zuKbRnYQHG3jAaPFcJMlXd6
+pjUARmiY2uMRWCus5u2stgxJ02rVwU4PC99XZUPzshdrq7BI9Hhn7y4vlwOE0YwALLN/QC5oEaBw9QHO
+V6MlG6ghYFGvP9RS7LY6u7AO1w8BPm4TkEL9z4eWpgohEnIUZutsE28IpCrUnaK8P6ZWNMjNkBS9EE6z
+qAlLo3Q6itblrDFUSuZwTV4Nll29QF0Oe30I1o3opzxf80scT7/PlViwijyEv/2SCwOMXBDOZudh2VNs
+sF3DVaGjkm8BPNJrxDHX/gScWZDzZ6y/xkGwOxlkWZeAcob6ywVzoDKAfSUxLEEoZbUQweTg/aqXzRAt
+Bsz0jtRgENRTJjNsgQ+RHHlwXMcXhjae5hN0fsRyQ4TYWExH8AU4r72a6d9kwj62UuzR9L7ahg9za4xT
+Cw6kVhsYv+eKqUNcwtspAGtewfNRltOKR1oJFskcwDiOWi6PPowbGwlCpf4vlQL40tYDrxTzx+5VeN1a
+CD7ttu+xYQydK16cLXgqpZkMLCJC3QkEnvk4vCYdE4Qfmgp5kkozq8RHCpQA32azbaTj90NIWTknVaPF
+CPGggiCUGWYvN8WgvVB+BdzgI+7RWCR941m56hfLqZYuXrqV+weqBicZHMVS/ITN5l1ULryr1f97M/Wp
+XCnXZpKlXqLlkt/GHM3bPFO79qO5f4QR2MTc0GPzru2K6eyBs9wuDPJilesKq2BnJ5DSJ2FI2vxYvDRy
+pjDRBri7ZyBXebe5YIEmRGj+gAJuGnfK4KD596VSlpmEO4adncZn98i5FHNygViVkgkII6J7TaDONMc7
+RKs+5WKHmSA3diFhFcqgNSECyyNCSVVHLs7CwySZXKirND9M8x7+k3VJ6ggDLPWbkcFRftn2IAh0ICWx
+tU35/Rh6Twgq2IY4Me/3ZVLJjcbR9C40=
+bbbbb=<root>
+<out_refund_no><![CDATA[1538312603680463_r1]]></out_refund_no>
+<out_trade_no><![CDATA[1538312603680463]]></out_trade_no>
+<refund_account><![CDATA[REFUND_SOURCE_RECHARGE_FUNDS]]></refund_account>
+<refund_fee><![CDATA[1]]></refund_fee>
+<refund_id><![CDATA[50000408312018093006553722447]]></refund_id>
+<refund_recv_accout><![CDATA[支付用户零钱]]></refund_recv_accout>
+<refund_request_source><![CDATA[API]]></refund_request_source>
+<refund_status><![CDATA[SUCCESS]]></refund_status>
+<settlement_refund_fee><![CDATA[1]]></settlement_refund_fee>
+<settlement_total_fee><![CDATA[1]]></settlement_total_fee>
+<success_time><![CDATA[2018-09-30 21:04:59]]></success_time>
+<total_fee><![CDATA[1]]></total_fee>
+<transaction_id><![CDATA[4200000188201809306520598396]]></transaction_id>
+</root>
+
+</code>
+</p>
+
+
